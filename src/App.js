@@ -18,6 +18,7 @@ const Container = styled.div`
 const Body = styled.div`
   display: flex;
   flex-direction: column;
+  width: 600px;
 `;
 const Title = styled.div`
   padding-top: 50px;
@@ -119,6 +120,87 @@ const useClick = (onClick) => {
   return element;
 };
 
+const useConfirm = (message = "", onConfirm, onCancel) => {
+  if (!onConfirm || typeof onConfirm !== "function") {
+    return;
+  }
+  if (!onCancel || typeof onCancel !== "function") {
+    return;
+  }
+  const confirmAction = () => {
+    if (window.confirm(message)) {
+      onConfirm();
+    } else {
+      onCancel();
+    }
+  };
+  return confirmAction;
+};
+
+const usePreventLeave = () => {
+  const listener = (event) => {
+    event.preventDefault();
+    event.returnValue = "";
+  };
+  const enablePrevent = () => window.addEventListener("beforeunload", listener);
+  const disablePrevent = () =>
+    window.removeEventListener("beforeunload", listener);
+
+  return { enablePrevent, disablePrevent };
+};
+
+const useBeforeLeave = (onBefore) => {
+  const handle = (event) => {
+    const { clientY } = event;
+    if (clientY <= 0) {
+      onBefore();
+    }
+  };
+  useEffect(() => {
+    document.addEventListener("mouseleave", handle);
+    return () => document.removeEventListener("mouseleave", handle);
+  }, []);
+
+  if (!onBefore || typeof onBefore !== "function") {
+    return;
+  }
+};
+
+const useFadeIn = (duration = 1, delay = 0) => {
+  const element = useRef();
+  useEffect(() => {
+    if (element.current) {
+      const { current } = element;
+      current.style.transition = `opacity ${duration}s ease-in-out ${delay}s`;
+      current.style.opacity = 1;
+    }
+  }, []);
+  if (typeof duration !== "number") {
+    return;
+  }
+  return { ref: element, style: { opacity: 0 } };
+  // return element;
+};
+
+const useNetwork = (onChange) => {
+  const [status, setStatus] = useState(navigator.onLine);
+  const handleChange = () => {
+    if (typeof onChange === "function") {
+      onChange(navigator.onLine);
+    }
+    setStatus(navigator.onLine);
+  };
+  useEffect(() => {
+    window.addEventListener("online", handleChange);
+    window.addEventListener("offline", handleChange);
+    return () => {
+      window.removeEventListener("online", handleChange);
+      window.removeEventListener("offline", handleChange);
+    };
+  }, []);
+  return status;
+};
+
 function App() {
   const [count, setCount] = useState(0);
   const maxLength = (value) => value.length < 10;
@@ -131,6 +213,24 @@ function App() {
   setTimeout(() => potato.current?.focus(), 5000);
   const sayHello = () => console.log("say Hello");
   const title = useClick(sayHello);
+  const deleteWordConfirm = () => {
+    console.log("deleteWordConfirm");
+  };
+  const abort = () => {
+    console.log("aborted");
+  };
+  const confirmDelete = useConfirm("are you sure", deleteWordConfirm, abort);
+  const { enablePrevent, disablePrevent } = usePreventLeave();
+  const begForLife = () => console.log(" please don't leave");
+  useBeforeLeave(begForLife);
+
+  const fadeInH1 = useFadeIn(4);
+  const fadeInP1 = useFadeIn(8, 4);
+
+  const handleNetworkChange = (online) => {
+    console.log(online ? "we just went online" : "we are offline");
+  };
+  const onLine = useNetwork(handleNetworkChange);
 
   return (
     <Container className="App">
@@ -151,7 +251,7 @@ function App() {
         {loading && <span>Loading your cats.....</span>}
         {!loading && error && <span>{error}</span>}
         {!loading && payload && (
-          <img src={payload.file} width="300" alt="cats"></img>
+          <img src={payload.file} height="100" alt="cats"></img>
         )}
         <br />
         <ButtonArea>
@@ -168,6 +268,41 @@ function App() {
         <br />
         <div>
           <h1 ref={title}>COME ON CLICK ME</h1>
+        </div>
+        <br />
+        <div>
+          <button onClick={confirmDelete}>delete somethig</button>
+        </div>
+        <br />
+        <div>
+          <button onClick={enablePrevent}>protect</button>
+          <button onClick={disablePrevent}>unprotect</button>
+        </div>
+        <br />
+        <div>
+          <h1> Mouse Leave </h1>
+        </div>
+        <br />
+        <div>
+          <h1 {...fadeInH1}> FadeIn </h1>
+        </div>
+        <br />
+        <div>
+          <p {...fadeInP1}>
+            lorem The ref value 'element.current' will likely have changed by
+            the time this effect cleanup function runs. If this ref points to a
+            node rendered by React, copy 'element.current' to a variable inside
+            the effect, and use that variable in the cleanup function
+            react-hooks/exhaustive-deps Line 161:6: React Hook useEffect has a
+            missing dependency: 'handle'. Either include it or remove the
+            dependency array react-hooks/exhaustive-deps Line 176:6: React Hook
+            useEffect has a missing dependency: 'duration'. Either include it or
+            remove the dependency array
+          </p>
+        </div>
+        <br />
+        <div>
+          <h1> {onLine ? "onLine" : "offLine"} </h1>
         </div>
       </Body>
     </Container>
