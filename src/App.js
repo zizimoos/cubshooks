@@ -12,13 +12,14 @@ const context = [
 
 const Container = styled.div`
   display: flex;
-  align-items: center;
+  /* align-items: center; */
   justify-content: center;
+  height: 2000px;
 `;
 const Body = styled.div`
   display: flex;
   flex-direction: column;
-  width: 600px;
+  width: 300px;
 `;
 const Title = styled.div`
   padding-top: 50px;
@@ -150,20 +151,23 @@ const usePreventLeave = () => {
 };
 
 const useBeforeLeave = (onBefore) => {
+  const [state, setState] = useState("");
   const handle = (event) => {
     const { clientY } = event;
     if (clientY <= 0) {
-      onBefore();
+      const word = onBefore();
+      setState(word);
     }
   };
   useEffect(() => {
     document.addEventListener("mouseleave", handle);
     return () => document.removeEventListener("mouseleave", handle);
-  }, []);
+  });
 
   if (!onBefore || typeof onBefore !== "function") {
     return;
   }
+  return state;
 };
 
 const useFadeIn = (duration = 1, delay = 0) => {
@@ -201,6 +205,83 @@ const useNetwork = (onChange) => {
   return status;
 };
 
+const useScroll = () => {
+  const [state, setState] = useState({
+    x: 0,
+    y: 2,
+  });
+  const onScroll = (event) => {
+    setState({ y: window.scrollY });
+  };
+  useEffect(() => {
+    window.addEventListener("scroll", onScroll);
+    return () => window.removeEventListener("scroll", onScroll);
+  });
+
+  return state;
+};
+
+const useFullscreen = () => {
+  const element = useRef();
+  const triggerFull = () => {
+    if (element.current) {
+      element.current.requestFullscreen();
+    }
+  };
+
+  return { element, triggerFull };
+};
+
+const useNotification = (title, options) => {
+  if (!("Notification" in window)) {
+    return;
+  }
+  const fireNotif = () => {
+    if (Notification.permission !== "granted") {
+      Notification.requestPermission().then((permission) => {
+        if (permission === "granted") {
+          new Notification(title, options);
+        } else {
+          return;
+        }
+      });
+    } else {
+      new Notification(title, options);
+    }
+  };
+  return fireNotif;
+};
+
+const useAxios = (opts, axiosInstance = Axios) => {
+  const [state, setState] = useState({
+    axloading: true,
+    axerror: null,
+    axdata: null,
+    trigger: 0,
+  });
+  // const [trigger, setTrigger] = useState(0);
+
+  useEffect(() => {
+    axiosInstance(opts)
+      .then((data) => {
+        setState({ ...state, axloading: false, axdata: data });
+      })
+      .catch((error) => {
+        setState({ ...state, axloading: false, axerror: error });
+      });
+  }, [state.trigger]);
+
+  const refetch = () => {
+    setState({
+      ...state,
+      trigger: new Date().now,
+    });
+    // setTrigger(new Date().now);
+  };
+
+  return { ...state, refetch };
+};
+
 function App() {
   const [count, setCount] = useState(0);
   const maxLength = (value) => value.length < 10;
@@ -221,8 +302,11 @@ function App() {
   };
   const confirmDelete = useConfirm("are you sure", deleteWordConfirm, abort);
   const { enablePrevent, disablePrevent } = usePreventLeave();
-  const begForLife = () => console.log(" please don't leave");
-  useBeforeLeave(begForLife);
+
+  const begForLife = () => {
+    return "plz don't leave Stay more";
+  };
+  const word = useBeforeLeave(begForLife);
 
   const fadeInH1 = useFadeIn(4);
   const fadeInP1 = useFadeIn(8, 4);
@@ -231,6 +315,20 @@ function App() {
     console.log(online ? "we just went online" : "we are offline");
   };
   const onLine = useNetwork(handleNetworkChange);
+
+  const { y } = useScroll();
+
+  const { element, triggerFull } = useFullscreen();
+
+  const triggerNotif = useNotification("wow! what a really precious !", {
+    body: "I LOVE YOU",
+  });
+
+  const { axloading, axerror, axdata, trigger, refetch } = useAxios({
+    url:
+      "https://cors-anywhere.herokuapp.com/https://yts.am/api/v2/list_movies.json",
+  });
+  console.log(axloading, axerror, axdata, trigger);
 
   return (
     <Container className="App">
@@ -246,12 +344,13 @@ function App() {
           {...name}
           placeholder="HOOKS useInput"
         ></input>
+
         <br />
         {/* https://aws.random.cat/meow */}
         {loading && <span>Loading your cats.....</span>}
         {!loading && error && <span>{error}</span>}
         {!loading && payload && (
-          <img src={payload.file} height="100" alt="cats"></img>
+          <img src={payload.file} width="300" height="300" alt="cats"></img>
         )}
         <br />
         <ButtonArea>
@@ -280,7 +379,7 @@ function App() {
         </div>
         <br />
         <div>
-          <h1> Mouse Leave </h1>
+          <h1> Mouse Leave {word}</h1>
         </div>
         <br />
         <div>
@@ -292,17 +391,38 @@ function App() {
             lorem The ref value 'element.current' will likely have changed by
             the time this effect cleanup function runs. If this ref points to a
             node rendered by React, copy 'element.current' to a variable inside
-            the effect, and use that variable in the cleanup function
-            react-hooks/exhaustive-deps Line 161:6: React Hook useEffect has a
-            missing dependency: 'handle'. Either include it or remove the
-            dependency array react-hooks/exhaustive-deps Line 176:6: React Hook
-            useEffect has a missing dependency: 'duration'. Either include it or
-            remove the dependency array
+            the effect
           </p>
         </div>
         <br />
         <div>
           <h1> {onLine ? "onLine" : "offLine"} </h1>
+        </div>
+        <br />
+        <div>
+          {/* <h1 style={{ position: "fixed", color: y > 1000 ? "red" : "blue" }}> */}
+          <h1 style={{ color: y > 500 ? "red" : "blue" }}>
+            Change color by scroll y:{y}
+          </h1>
+        </div>
+        <br />
+        <div>
+          <img
+            ref={element}
+            src="https://i.insider.com/5bec30ce48eb126b17599446?width=1100&format=jpeg&auto=webp"
+            width="300"
+            alt="tessa pic"
+          ></img>
+        </div>
+        <button onClick={triggerFull}>Make FullScreen</button>
+        <br />
+        <div>
+          <button onClick={triggerNotif}>notification</button>
+        </div>
+        <br />
+        <div>
+          <h1>{axdata && axdata?.status}</h1>
+          <button onClick={refetch}>REFETCH</button>
         </div>
       </Body>
     </Container>
