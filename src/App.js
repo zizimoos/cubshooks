@@ -142,6 +142,7 @@ const usePreventLeave = () => {
   const listener = (event) => {
     event.preventDefault();
     event.returnValue = "";
+    console.log("do you want to sign Out?");
   };
   const enablePrevent = () => window.addEventListener("beforeunload", listener);
   const disablePrevent = () =>
